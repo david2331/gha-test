@@ -1,0 +1,15 @@
+name: test-workflow
+on: 
+    push:
+        branches:
+            - main
+jobs:
+    test:
+        run-on: ubuntu-latest
+        steps:
+            - name: Get code
+              uses: action/checkout@v4
+            - name: list file
+              run: ls
+
+
