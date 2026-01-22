@@ -1,17 +1,63 @@
-name: test-workflow
-on: 
-    push:
-        branches:
-            - main
+name: Read S3 Bucket
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Manual trigger
+
+# Required for OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-    test:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Get code
-              uses: actions/checkout@v4
-            - name: print directory
-              run: pwd
-            - name: list file
-              run: ls
+  read-s3:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::413973044303:role/github-s3-readonly
+          aws-region: ap-southeast-1
+          role-session-name: github-s3-readonly
 
+      - name: Verify AWS Identity
+        run: |
+          echo "=== AWS Identity ==="
+          aws sts get-caller-identity
+          
+      - name: List S3 Buckets
+        run: |
+          echo "=== Available S3 Buckets ==="
+          aws s3 ls
+
+      - name: Read Specific Bucket Contents
+        run: |
+          echo "=== Contents of my-bucket ==="
+          aws s3 ls s3://my-bucket/ --recursive --human-readable --summarize
+
+      - name: Download File from S3
+        run: |
+          echo "=== Downloading file ==="
+          aws s3 cp s3://my-bucket/data/file.txt ./downloaded-file.txt
+          cat downloaded-file.txt
+
+      - name: Get Object Metadata
+        run: |
+          echo "=== File Metadata ==="
+          aws s3api head-object \
+            --bucket my-bucket \
+            --key data/file.txt
+
+      - name: Sync S3 Directory
+        run: |
+          echo "=== Syncing S3 directory ==="
+          mkdir -p ./s3-data
+          aws s3 sync s3://my-bucket/data/ ./s3-data/
+          ls -la ./s3-data/
